@@ -31,7 +31,7 @@ const Index = () => {
     },
     {
       title: 'Submit Report',
-      description: 'Send your emergency report, and we'll ensure it reaches the right responders.',
+      description: "Send your emergency report, and we'll ensure it reaches the right responders.",
       icon: <Send size={28} />,
     },
   ];
