@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { AlertTriangle, MessageSquare, MapPin, Send } from "lucide-react"; // Giả sử bạn đang sử dụng các icon này
+import { AlertTriangle, MessageSquare, MapPin, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const MapComponent = () => {
   const [suggestions, setSuggestions] = useState([]);
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState("America");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -15,9 +15,10 @@ const MapComponent = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormData((prev) => ({ ...prev, address: inputValue }));
-    // Validate form
-    if (!formData.message.trim()) {
+    const updatedFormData = { ...formData, address: inputValue };
+    setFormData(updatedFormData);
+
+    if (!updatedFormData.message.trim()) {
       toast({
         title: "Yêu cầu thông điệp",
         description: "Vui lòng mô tả tình trạng khẩn cấp của bạn.",
@@ -35,45 +36,44 @@ const MapComponent = () => {
       return;
     }
 
-    // Simulate form submission
     setIsSubmitting(true);
 
-    // Simulate API call
-    fetch("http://byteforce.caohoangphuc.id.vn/python/get_status", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json", // Đặt header cho kiểu dữ liệu
-      },
-      body: JSON.stringify(formData), // Chuyển đổi formData thành JSON
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
+    try {
+      const response = await fetch(
+        "http://byteforce.caohoangphuc.id.vn/python/get_status",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedFormData),
         }
-        return response.json(); // Chuyển đổi phản hồi thành JSON
-      })
-      .then((data) => {
-        console.log("Success:", data); // Xử lý dữ liệu phản hồi
-      })
-      .catch((error) => {
-        console.error("Error:", error); // Xử lý lỗi
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      const data = await response.json();
+      console.log("Success:", data);
+
+      toast({
+        title: "Báo cáo khẩn cấp",
+        description: "Báo cáo của bạn đã được gửi đi. Giúp đỡ đang trên đường.",
       });
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    toast({
-      title: "Báo cáo khẩn cấp",
-      description: "Báo cáo của bạn đã được gửi đi. Giúp đỡ đang trên đường.",
-    });
-
-    // Reset form
-    setFormData({
-      message: "",
-      address: "",
-    });
-    setInputValue(""); // Reset ô nhập địa chỉ
-    setSuggestions([]); // Xóa gợi ý
-    setIsSubmitting(false);
+      // Reset form
+      setFormData({
+        message: "",
+        address: "",
+      });
+      setInputValue("");
+      setSuggestions([]);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const geocodeAddress = async (address) => {
@@ -85,7 +85,6 @@ const MapComponent = () => {
     const data = await response.json();
     if (data.length > 0) {
       const loc = data[0];
-      // Bạn có thể cập nhật formData.address nếu cần
       setFormData((prev) => ({ ...prev, address: loc.display_name }));
     }
   };
@@ -93,7 +92,7 @@ const MapComponent = () => {
   const handleInputChange = async (event) => {
     const value = event.target.value;
     setInputValue(value);
-    geocodeAddress(value);
+
     if (value) {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
@@ -103,14 +102,14 @@ const MapComponent = () => {
       const data = await response.json();
       setSuggestions(data);
     } else {
-      setSuggestions([]); // Xóa gợi ý nếu ô nhập rỗng
+      setSuggestions([]);
     }
   };
 
   const handleSuggestionClick = (suggestion) => {
     setInputValue(suggestion.display_name);
     setSuggestions([]);
-    geocodeAddress(suggestion.display_name); // Tìm kiếm khi chọn gợi ý
+    geocodeAddress(suggestion.display_name);
   };
 
   return (
