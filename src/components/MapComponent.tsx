@@ -1,24 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AlertTriangle, MessageSquare, MapPin, Send } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const MapComponent = () => {
-  const [suggestions, setSuggestions] = useState([]);
-  const [inputValue, setInputValue] = useState("America");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     message: "",
-    address: "",
+    latitude: null, // Thêm latitude
+    longitude: null, // Thêm longitude
   });
+
+  // Lấy vị trí tự động khi component load
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData((prev) => ({
+            ...prev,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }));
+        },
+        (error) => {
+          console.error("Lỗi lấy vị trí:", error);
+          toast({
+            title: "Không lấy được vị trí",
+            description: "Vui lòng bật định vị để gửi báo cáo.",
+            variant: "destructive",
+          });
+        }
+      );
+    } else {
+      toast({
+        title: "Trình duyệt không hỗ trợ",
+        description: "Vui lòng dùng thiết bị có định vị.",
+        variant: "destructive",
+      });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedFormData = { ...formData, address: inputValue };
-    setFormData(updatedFormData);
 
-    if (!updatedFormData.message.trim()) {
+    if (!formData.message.trim()) {
       toast({
         title: "Yêu cầu thông điệp",
         description: "Vui lòng mô tả tình trạng khẩn cấp của bạn.",
@@ -27,10 +53,10 @@ const MapComponent = () => {
       return;
     }
 
-    if (!inputValue.trim()) {
+    if (!formData.latitude || !formData.longitude) {
       toast({
-        title: "Yêu cầu địa chỉ",
-        description: "Vui lòng cung cấp thông tin vị trí của bạn.",
+        title: "Yêu cầu vị trí",
+        description: "Vui lòng bật định vị để gửi báo cáo.",
         variant: "destructive",
       });
       return;
@@ -46,7 +72,7 @@ const MapComponent = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(updatedFormData),
+          body: JSON.stringify(formData), // Gửi message, latitude, longitude
         }
       );
 
@@ -65,51 +91,14 @@ const MapComponent = () => {
       // Reset form
       setFormData({
         message: "",
-        address: "",
+        latitude: null,
+        longitude: null,
       });
-      setInputValue("");
-      setSuggestions([]);
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const geocodeAddress = async (address) => {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-        address
-      )}`
-    );
-    const data = await response.json();
-    if (data.length > 0) {
-      const loc = data[0];
-      setFormData((prev) => ({ ...prev, address: loc.display_name }));
-    }
-  };
-
-  const handleInputChange = async (event) => {
-    const value = event.target.value;
-    setInputValue(value);
-
-    if (value) {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          value
-        )}&addressdetails=1`
-      );
-      const data = await response.json();
-      setSuggestions(data);
-    } else {
-      setSuggestions([]);
-    }
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setInputValue(suggestion.display_name);
-    setSuggestions([]);
-    geocodeAddress(suggestion.display_name);
   };
 
   return (
@@ -149,29 +138,18 @@ const MapComponent = () => {
               <MapPin className="mr-2 h-4 w-4 text-blue-500" />
               Vị trí của bạn
             </h3>
-
             <div className="space-y-4">
               <div>
                 <input
                   type="text"
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  placeholder="Nhập địa chỉ"
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition duration-200"
+                  value={
+                    formData.latitude && formData.longitude
+                      ? `${formData.latitude}, ${formData.longitude}`
+                      : "Đang lấy vị trí..."
+                  }
+                  readOnly // Không cho người dùng chỉnh tay
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 bg-gray-100"
                 />
-                {suggestions.length > 0 && (
-                  <ul className="mt-2 bg-white border border-gray-300 rounded-md shadow-md">
-                    {suggestions.map((suggestion) => (
-                      <li
-                        key={suggestion.place_id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="p-2 cursor-pointer hover:bg-gray-100"
-                      >
-                        {suggestion.display_name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
           </div>
